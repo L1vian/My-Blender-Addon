@@ -333,10 +333,11 @@ class OBJECT_OT_FixMissingPaths(bpy.types.Operator):
     bl_label = "修复/清理丢失路径"
     bl_options = {'REGISTER', 'UNDO'}
 
+    @classmethod
+    def poll(cls, context):
+        return False
+
     def execute(self, context):
-        # 1. 首先关闭自动打包，防止处理过程中持续报错
-        if context.scene.tommy_pack_external:  # 假设你之前在 properties.py 注册过这个
-            context.scene.tommy_pack_external = False
 
         missing_images = []
         # 2. 遍历所有图像数据块
