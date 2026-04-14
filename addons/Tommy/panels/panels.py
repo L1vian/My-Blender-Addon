@@ -34,7 +34,6 @@ class VIEW3D_PT_MaterialTools(bpy.types.Panel):
         layout.label(text="object manager：")
         grid = layout.grid_flow(row_major=True, columns=2, even_columns=True)
         grid.operator("object.set_origin_to_extreme", text="设置原点", icon='SNAP_VERTEX')
-        # grid.operator("object.origin_to_bottom", icon='SNAP_VERTEX')
         grid.operator("object.pack_to_empty", icon='EMPTY_AXIS')
         grid.operator("object.go_to_floor", icon='SORT_DESC')
 
@@ -44,7 +43,7 @@ class VIEW3D_PT_MaterialTools(bpy.types.Panel):
         layout.label(text="source manager：")
         grid = layout.grid_flow(row_major=True, columns=2, even_columns=True)
         grid.operator("object.clean_unused_materials", icon='MATERIAL_DATA')
-        # grid.operator("object.fix_missing_paths", text="修复丢失路径/打包报错", icon='FILE_REFRESH')
+        grid.operator("object.fix_missing_paths", text="修复丢失路径/打包报错", icon='FILE_REFRESH')
 
         layout.separator()
 

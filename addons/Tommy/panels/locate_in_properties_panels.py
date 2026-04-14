@@ -161,39 +161,59 @@ class RENDER_PT_NamedHelper(bpy.types.Panel):
     def draw_current_frame_mode(self, layout, context):
         scene = context.scene
         current_camera = self.get_current_frame_camera(scene)
+
+        # --- 设置区块 ---
         col = layout.column(align=True)
-        row = col.row()
-        row.label(text="设置")
-        render_settings_row = col.row(align=True)
-        render_settings_row.label(text="渲染引擎：")
-        render_settings_row.label(text=scene.render.engine)
-        if scene.render.engine == 'CYCLES':
-            render_samples_row = col.row(align=True)
-            render_samples_row.label(text="渲染采样：")
-            render_samples_row.label(text=str(scene.cycles.samples))
-        elif scene.render.engine == 'BLENDER_EEVEE':
-            render_samples_row = col.row(align=True)
-            render_samples_row.label(text="渲染采样：")
-            render_samples_row.label(text=str(scene.eevee.taa_render_samples))
+        col.label(text="设置")
+
+        # 1. 渲染引擎
+        split = col.split(factor=0.5)
+        split.label(text="渲染引擎：")
+        split.label(text=scene.render.engine)
+
+        # 2. 渲染采样
+        split = col.split(factor=0.5)
+        split.label(text="渲染采样：")
+        engine = scene.render.engine
+        if engine == 'CYCLES':
+            split.prop(scene.cycles, "samples", text="")
+        elif engine in {'BLENDER_EEVEE', 'BLENDER_EEVEE_NEXT'}:
+            # 兼容不同版本的 Eevee 采样属性名
+            if hasattr(scene.eevee, "render_samples"):
+                split.prop(scene.eevee, "render_samples", text="")
+            elif hasattr(scene.eevee, "taa_render_samples"):
+                split.prop(scene.eevee, "taa_render_samples", text="")
+            else:
+                split.label(text="N/A")
         else:
-            render_samples_row = col.row(align=True)
-            render_samples_row.label(text="渲染采样：")
-            render_samples_row.label(text="N/A")
-        resolution_row = col.row(align=True)
-        resolution_row.label(text="图像分辨率：")
-        resolution_row.label(text=f"{scene.render.resolution_x} × {scene.render.resolution_y}")
-        format_row = col.row(align=True)
-        format_row.label(text="图像格式：")
-        format_row.label(text=scene.render.image_settings.file_format)
+            split.label(text="N/A")
+
+        # 3. 图像分辨率
+        split = col.split(factor=0.5)
+        split.label(text="图像分辨率：")
+        split.label(text=f"{scene.render.resolution_x} × {scene.render.resolution_y}")
+
+        # 4. 图像格式
+        split = col.split(factor=0.5)
+        split.label(text="图像格式：")
+        split.prop(scene.render.image_settings, "file_format", text="")
+
         col.separator()
-        frame_row = col.row(align=True)
-        frame_row.label(text=f"帧号: {scene.frame_current}")
-        camera_row = col.row(align=True)
+
+        # 5. 当前帧号
+        split = col.split(factor=0.5)
+        split.label(text="当前帧号：")
+        split.label(text=str(scene.frame_current))
+
+        # 6. 摄像机状态
+        split = col.split(factor=0.5)
+        split.label(text="摄像机绑定：")
         if current_camera:
-            camera_row.label(text=f"摄像机: {current_camera.name}")
+            split.label(text=current_camera.name)
         else:
-            camera_row.alert = True
-            camera_row.label(text="无绑定摄像机", icon='ERROR')
+            split.alert = True
+            split.label(text="无绑定摄像机", icon='ERROR')
+
         col.separator()
 
         # 使用统一渲染按钮系统
@@ -209,58 +229,91 @@ class RENDER_PT_NamedHelper(bpy.types.Panel):
     def draw_sequence_mode(self, layout, context):
         scene = context.scene
         frames_info, missing_frames = self.collect_frames_info(scene)
+
+        # --- 顶部设置区块 ---
         col = layout.column(align=True)
-        row = col.row()
-        row.label(text="设置")
-        render_settings_row = col.row(align=True)
-        render_settings_row.label(text="渲染引擎：")
-        render_settings_row.label(text=scene.render.engine)
-        if scene.render.engine == 'CYCLES':
-            render_samples_row = col.row(align=True)
-            render_samples_row.label(text="渲染采样：")
-            render_samples_row.label(text=str(scene.cycles.samples))
-        elif scene.render.engine == 'BLENDER_EEVEE':
-            render_samples_row = col.row(align=True)
-            render_samples_row.label(text="渲染采样：")
-            render_samples_row.label(text=str(scene.eevee.taa_render_samples))
+        col.label(text="设置")
+
+        # 1. 渲染引擎 (只读显示)
+        split = col.split(factor=0.5)
+        split.alignment='CENTER'
+        split.label(text="渲染引擎：")
+        split.label(text=scene.render.engine)
+
+        # 2. 渲染采样 (智能适配引擎并允许修改)
+        split = col.split(factor=0.5)
+        split.label(text="渲染采样：")
+        engine = scene.render.engine
+        if engine == 'CYCLES':
+            split.prop(scene.cycles, "samples", text="")
+        elif engine in {'BLENDER_EEVEE', 'BLENDER_EEVEE_NEXT'}:
+            # 适配 Blender 4.2+ 的 Eevee Next 和旧版 Eevee
+            if hasattr(scene.eevee, "render_samples"):
+                split.prop(scene.eevee, "render_samples", text="")
+            elif hasattr(scene.eevee, "taa_render_samples"):
+                split.prop(scene.eevee, "taa_render_samples", text="")
+            else:
+                split.label(text="N/A")
         else:
-            render_samples_row = col.row(align=True)
-            render_samples_row.label(text="渲染采样：")
-            render_samples_row.label(text="N/A")
-        resolution_row = col.row(align=True)
-        resolution_row.label(text="图像分辨率：")
-        resolution_row.label(text=f"{scene.render.resolution_x} × {scene.render.resolution_y}")
-        format_row = col.row(align=True)
-        format_row.label(text="图像格式：")
-        format_row.label(text=scene.render.image_settings.file_format)
+            split.label(text="N/A")
+
+        # 3. 图像分辨率 (只读显示)
+        split = col.split(factor=0.5)
+        split.label(text="图像分辨率：")
+        split.label(text=f"{scene.render.resolution_x} × {scene.render.resolution_y}")
+
+        # 4. 图像格式 (允许修改)
+        split = col.split(factor=0.5)
+        split.label(text="图像格式：")
+        split.prop(scene.render.image_settings, "file_format", text="")
+
+        # 5. 总帧数 (只读显示)
         total_frames = scene.frame_end - scene.frame_start + 1
-        count_row = col.row(align=True)
-        count_row.label(text="总帧数：")
-        count_row.label(text=str(total_frames))
-        range_row = col.row(align=True)
-        range_row.label(text="渲染范围：")
-        range_row.label(text=f"{scene.frame_start} - {scene.frame_end}")
+        split = col.split(factor=0.5)
+        split.label(text="总帧数：")
+        split.label(text=str(total_frames))
+
+        # 6. 渲染范围 (允许修改，左右并排)
+        split = col.split(factor=0.5)
+        split.label(text="渲染范围：")
+        range_row = split.row(align=True)
+        range_row.prop(scene, "frame_start", text="")
+        range_row.prop(scene, "frame_end", text="")
+
         col.separator()
+
+        # --- 摄像机绑定状态区块 ---
         col.label(text="摄像机绑定状态：")
-        stats_row = col.row(align=True)
-        stats_row.label(text="已绑定:", icon='CHECKMARK')
-        stats_row.label(text=f"{len(frames_info)} 帧")
+
+        # 1. 已绑定帧数 (对齐中线)
+        split = col.split(factor=0.5)
+        split.label(text="已绑定:", icon='CHECKMARK')
+        split.label(text=f"{len(frames_info)} 帧")
+
+        # 2. 缺失帧处理
         has_missing = len(missing_frames) > 0
         if has_missing:
-            missing_row = col.row(align=True)
-            missing_row.alert = True
-            missing_row.label(text="缺失：", icon='ERROR')
-            missing_row.label(text=f"{len(missing_frames)} 帧")
+            # 缺失数量统计 (对齐中线)
+            split = col.split(factor=0.5)
+            split.alert = True
+            split.label(text="缺失：", icon='ERROR')
+            split.label(text=f"{len(missing_frames)} 帧")
+
+            row_detail = col.split(factor=0.5, align=True)
+
+            # 处理详情文字内容
             if len(missing_frames) <= 5:
                 missing_text = ", ".join(map(str, missing_frames))
-                col.label(text=f"缺失帧：{missing_text}")
             else:
-                missing_text = "，".join(map(str, missing_frames[:5]))
-                col.label(text=f"缺失帧：{missing_text}...")
-            jump_row = col.row()
-            jump_row.operator("tommy.preview_missing_frames",
-                              text="跳转到第一帧缺失帧",
-                              icon='FRAME_NEXT').frame = missing_frames[0]
+                missing_text = ", ".join(map(str, missing_frames[:5])) + "..."
+
+            # 左侧显示详情内容
+            row_detail.label(text=f"详情: {missing_text}", icon='INFO')
+
+            # 右侧放置跳转按钮 (文字缩短为“跳转首帧”以适配空间)
+            row_detail.operator("tommy.preview_missing_frames",
+                                text="跳转首帧",).frame = missing_frames[0]
+
         col.separator()
 
         # --- 修改部分：预览输出文件名 和 检查同名标记 同行显示，高度 1.5 ---

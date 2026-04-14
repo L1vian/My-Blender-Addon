@@ -38,33 +38,60 @@ class TOMMY_PT_dpi_tool(bpy.types.Panel):
         height_mm = (px_y / dpi) * 25.4
 
         # ── 表头 ─────────────────────────────────────────────────
-        split_header = layout.split(factor=0.55)
+        split_header = layout.split(factor=0.5)
+        split_header.alignment='RIGHT'
         split_header.label(text="像素尺寸")
+        split_header.alignment = 'LEFT'
         split_header.label(text="物理尺寸")
 
         # ── 宽度行 ───────────────────────────────────────────────
-        split_w = layout.split(factor=0.55)
-        split_w.prop(scene, "tommy_original_resolution", index=0, text="W")
+        split_w = layout.split(factor=0.5)
+
+        # 标签列压窄，输入框紧跟在右边
+        sub_left_w = split_w.split(factor=0.34, align=True)
+        sub_left_w.label(text="分辨率 X")
+        sub_left_w.prop(scene, "tommy_original_resolution", index=0, text="")
+
+        # 右侧保持不变
         col_mm_w = split_w.column()
         col_mm_w.enabled = False
-        col_mm_w.label(text=f"{width_mm:.1f} mm")
+        col_mm_w.label(text=f"{width_mm:.1f} mm  宽 打印尺寸")
 
         # ── 高度行 ───────────────────────────────────────────────
-        split_h = layout.split(factor=0.55)
-        split_h.prop(scene, "tommy_original_resolution", index=1, text="H")
+        split_h = layout.split(factor=0.5)
+
+        # 只修改左侧：标签列压窄，输入框紧跟在右边
+        sub_left_h = split_h.split(factor=0.34, align=True)
+        sub_left_h.label(text="            Y")
+        sub_left_h.prop(scene, "tommy_original_resolution", index=1, text="")
+
+        # 右侧保持不变
         col_mm_h = split_h.column()
         col_mm_h.enabled = False
-        col_mm_h.label(text=f"{height_mm:.1f} mm")
+        col_mm_h.label(text=f"{height_mm:.1f} mm  高 打印尺寸")
 
         layout.separator(factor=0.8)
 
-        # ── DPI 输入（居中）──────────────────────────────────────
-        row_dpi = layout.row()
-        row_dpi.alignment = 'CENTER'
-        row_dpi.label(text="DPI")
-        row_dpi.prop(scene, "tommy_dpi", text="")
+        # ── DPI 输入（真正居中，标签在输入框左侧）────────────────────
+        row_dpi_wrap = layout.row(align=False)
 
-        layout.separator(factor=0.5)
+        # 三段式：左留白 / 中间内容 / 右留白
+        left = row_dpi_wrap.column()
+        center = row_dpi_wrap.column()
+        right = row_dpi_wrap.column()
+
+        # 左右留白
+        left.label(text="")
+        right.label(text="")
+
+        # 中间内容组
+        center_row = center.row(align=True)
+        center_row.alignment = 'CENTER'
+        center_row.label(text="DPI")
+
+        value_row = center_row.row(align=True)
+        value_row.ui_units_x = 4
+        value_row.prop(scene, "tommy_dpi", text="")
 
         # ── 确认写入按钮（蓝色常量，紧跟 DPI 下方）─────────────
         row_btn = layout.row()
