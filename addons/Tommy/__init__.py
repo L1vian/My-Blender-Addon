@@ -18,6 +18,8 @@ from ...common.i18n.dictionary import common_dictionary
 from ...common.i18n.i18n import load_dictionary
 
 from .panels.locate_in_properties_panels import sync_ui_list_handler
+from .panels.locate_in_properties_panels import auto_sort_markers_handler
+
 from .properties import CameraResolutionSetting
 from .operators.camera_resolution import (
     frame_change_handler,
@@ -133,6 +135,10 @@ def register():
     if ensure_addon_state_on_load not in bpy.app.handlers.load_post:
         bpy.app.handlers.load_post.append(ensure_addon_state_on_load)
 
+        # 注册依赖图处理器
+    handlers = bpy.app.handlers.depsgraph_update_post
+    if auto_sort_markers_handler not in handlers:
+        handlers.append(auto_sort_markers_handler)
 
     # F. 计时器
     bpy.app.timers.register(run_init_timer, first_interval=0.1)
@@ -154,6 +160,10 @@ def unregister():
 
     if auto_load_id_from_active in bpy.app.handlers.depsgraph_update_post:
         bpy.app.handlers.depsgraph_update_post.remove(auto_load_id_from_active)
+
+        # 卸载依赖图处理器
+    if auto_sort_markers_handler in bpy.app.handlers.depsgraph_update_post:
+        bpy.app.handlers.depsgraph_update_post.remove(auto_sort_markers_handler)
 
     # 注销翻译
     try:

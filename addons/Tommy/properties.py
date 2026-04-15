@@ -133,24 +133,21 @@ bpy.types.Scene.tommy_original_resolution = bpy.props.IntVectorProperty(
 # ====================== 摄像机列表 UIList 相关属性 ======================
 # 1. 先定义更新函数
 def update_active_marker_index(self, context):
-    scene = self
-    # 使用 getattr 安全获取，或者直接访问（因为已经注册）
-    if scene.tommy_is_syncing:
+    scene = context.scene
+
+    # 【修复】统一读取 UI 同步锁
+    if scene.get("tommy_is_syncing", False):
         return
 
-    # 获取当前选中的标记点
     idx = scene.tommy_active_marker_index
-    if idx < 0 or idx >= len(scene.timeline_markers):
-        return
 
-    markers = sorted(scene.timeline_markers, key=lambda m: m.frame)
-    target_marker = markers[idx]
-
-    try:
-        scene.tommy_is_syncing = True # 上锁
-        scene.frame_set(target_marker.frame) # 跳转时间轴
-    finally:
-        scene.tommy_is_syncing = False # 解锁
+    if idx >= 0 and idx < len(scene.timeline_markers):
+        marker = scene.timeline_markers[idx]
+        if marker.camera:
+            # 【修复】字典语法写入，统一变量名
+            scene["tommy_is_syncing"] = True
+            scene.frame_set(marker.frame)
+            scene["tommy_is_syncing"] = False
 
 # 2. 注册属性
 bpy.types.Scene.tommy_active_marker_index = bpy.props.IntProperty(
