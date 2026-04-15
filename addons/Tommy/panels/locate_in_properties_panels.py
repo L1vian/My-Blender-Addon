@@ -5,35 +5,76 @@ from bpy.app.handlers import persistent
 
 @persistent
 def sync_ui_list_handler(scene, depsgraph=None):
-    # 避免在渲染时运行，防止崩溃
     if bpy.app.is_job_running('RENDER'):
         return
 
-     # 锁：如果是由于点击 UI 列表引起的帧变化，不要再反向更新 UI
-    if scene.tommy_is_syncing:
+     # 【修复】使用 get 安全读取字典属性
+    if scene.get("tommy_is_syncing", False):
         return
 
     current_frame = scene.frame_current
     target_index = -1
 
-    # 1. 寻找匹配的标记索引
     for i, marker in enumerate(scene.timeline_markers):
         if marker.frame == current_frame and marker.camera:
             target_index = i
             break
 
-    # 2. 同步属性 (请确保这里使用的属性名与 UI 列表中使用的一致)
-    # 假设你使用的是 tommy_camera_index
     if scene.tommy_active_marker_index != target_index:
-        scene.tommy_is_syncing = True  # 加上锁
+        # 【修复】使用字典语法动态赋值，无需注册！
+        scene["tommy_is_syncing"] = True
         scene.tommy_active_marker_index = target_index
-        scene.tommy_is_syncing = False  # 释放锁
+        scene["tommy_is_syncing"] = False
 
-        # 3. 强制重绘所有可能的 UI 区域
         for window in bpy.context.window_manager.windows:
             for area in window.screen.areas:
                 if area.type in {'VIEW_3D', 'PROPERTIES'}:
                     area.tag_redraw()
+
+
+def check_markers_order(scene):
+    """辅助函数：检查当前时间轴标记是否处于乱序状态"""
+    if not scene.timeline_markers:
+        return False
+    frames = [m.frame for m in scene.timeline_markers]
+    # 如果当前帧序列与排序后的序列不一致，说明乱序了
+    return frames != sorted(frames)
+
+
+def trigger_sort_safely():
+    scene = bpy.context.scene
+
+    # 【修复】字典语法赋值
+    scene["tommy_is_sorting_markers"] = True
+
+    try:
+        bpy.ops.tommy.sort_timeline_markers()
+    except Exception as e:
+        print(f"Tommy 自动排序标记失败: {e}")
+
+    # 【修复】字典语法赋值
+    scene["tommy_is_sorting_markers"] = False
+    return None
+
+@persistent
+def auto_sort_markers_handler(scene, depsgraph):
+    """
+    监听依赖图更新。当我们在时间轴上增/删/改标记时，会触发此函数
+    """
+    if bpy.app.is_job_running('RENDER'):
+        return
+
+    # 如果此时正在执行 UI 列表的双向同步，或者正在执行排序，则直接放行，避免死循环
+    if scene.get("tommy_is_syncing", False) or scene.get("tommy_is_sorting_markers", False):
+        return
+
+    # 检查是否真的发生了乱序
+    if check_markers_order(scene):
+        # 发现乱序！我们不直接调用 ops，而是注册一个 0.1 秒后执行的计时器
+        # 这样可以巧妙地跳出 Handler 的严格上下文限制
+        if not bpy.app.timers.is_registered(trigger_sort_safely):
+            bpy.app.timers.register(trigger_sort_safely, first_interval=0.1)
+
 
 
 class RENDER_UL_bound_cameras(bpy.types.UIList):
