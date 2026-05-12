@@ -21,6 +21,28 @@ class BaseRenderOperator:
     _original_camera = None
     _original_filepath = ""  # 关键：保存原始输出路径，用于提取前缀
 
+    # 临时备份
+    _original_filepath: str = None
+    _original_use_file_extension: bool = None
+    _original_camera: bpy.types.Object = None
+
+    def backup_render_settings(self, scene):
+        """渲染开始前备份当前设置"""
+        self._original_filepath = scene.render.filepath
+        self._original_use_file_extension = scene.render.use_file_extension
+        self._original_camera = scene.camera
+
+    def restore_render_settings(self, scene):
+        """渲染结束后恢复设置"""
+        if hasattr(self, "_original_filepath") and self._original_filepath:
+            scene.render.filepath = self._original_filepath
+
+        if hasattr(self, "_original_use_file_extension") and self._original_use_file_extension is not None:
+            scene.render.use_file_extension = self._original_use_file_extension
+
+        if hasattr(self, "_original_camera") and self._original_camera:
+            scene.camera = self._original_camera
+
     def modal(self, context, event):
         if event.type == 'TIMER':
             # 1. 处理用户取消
@@ -154,11 +176,18 @@ class BaseRenderOperator:
             print(f"❌ 文件未找到！将重新尝试渲染当前帧: {abs_path}")
             self._is_rendering = False
 
+        # 当前帧已经保存完成后，再恢复临时路径
+        self.restore_render_settings(scene)
+
         self.remove_handlers()
 
     def render_cancel(self, scene, depsgraph):
         self._cancelled = True
         self._is_rendering = False
+
+        # 当前帧已经保存完成后，再恢复临时路径
+        self.restore_render_settings(scene)
+
         self.remove_handlers()
 
     def remove_handlers(self):
@@ -169,10 +198,14 @@ class BaseRenderOperator:
 
     def finish_render(self, context):
         scene = context.scene
+
         # 核心：无论什么渲染，结束时都把所有标志位和任务 ID 设为默认状态
         scene.is_current_rendering = False
         scene.is_sequence_rendering = False
         scene.tommy_active_render_task = "NONE"
+
+        # 临时路径恢复
+        self.restore_render_settings(scene)
 
         # 1. 还原路径
         if hasattr(self, '_original_filepath') and self._original_filepath:
@@ -254,6 +287,10 @@ class RENDER_OT_RenderAllFrames(bpy.types.Operator, BaseRenderOperator):
     def execute(self, context):
         """执行操作：收集所有标记了摄像机的帧，启动模态渲染"""
         scene = context.scene
+
+        # 备份渲染设置
+        self.backup_render_settings(scene)
+
         # 再次检查并发状态（防止通过快捷键绕过 poll）
         if scene.get('is_sequence_rendering') or scene.get('is_current_rendering'):
             self.report({'ERROR'}, "已有渲染任务在进行中，请等待完成")
@@ -311,6 +348,10 @@ class RENDER_OT_RenderCurrentFrame(bpy.types.Operator, BaseRenderOperator):
 
     def execute(self, context):
         scene = context.scene
+
+        # 备份渲染设置
+        self.backup_render_settings(scene)
+
         # 检查并发
         if scene.get('is_sequence_rendering') or scene.get('is_current_rendering'):
             self.report({'ERROR'}, "已有渲染任务在进行中，请等待完成")
@@ -350,6 +391,10 @@ class RENDER_OT_RenderCustomSequence(bpy.types.Operator, BaseRenderOperator):
 
     def execute(self, context):
         scene = context.scene
+
+        # 备份渲染设置
+        self.backup_render_settings(scene)
+
         raw_input = scene.tommy_custom_render_frames
 
         # 1. 基础输入校验
