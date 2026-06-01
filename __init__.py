@@ -1,4 +1,5 @@
-from .addons.Tommy import register as addon_register, unregister as addon_unregister
+from .addons.Tommy import register as addon_register
+from .addons.Tommy import unregister as addon_unregister
 
 bl_info = {
     "name": "Tommy's Blender Tools_2.0.2 Beta",
